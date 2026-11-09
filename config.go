@@ -25,6 +25,16 @@ type Config struct {
 	Provider  Provider
 	IPAddress string
 	Delayed   bool
+	// EquitiesWorkers is the number of goroutines that read the equities queue.
+	// Zero or less means DEFAULT_EQUITIES_WORKERS.
+	EquitiesWorkers int
+}
+
+func (config Config) equitiesWorkerCount() int {
+	if config.EquitiesWorkers > 0 {
+		return config.EquitiesWorkers
+	}
+	return DEFAULT_EQUITIES_WORKERS
 }
 
 func (config Config) getAuthUrl() string {

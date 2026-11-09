@@ -1159,3 +1159,23 @@ func TestOptionsClientReconnectsWithSameProtocolHeaders(t *testing.T) {
 	}
 	client.Stop()
 }
+
+func TestEquitiesClientWorkerCountComesFromConfig(t *testing.T) {
+	onQuote := func(EquityQuote) {}
+	for _, test := range []struct {
+		workers int
+		want    int
+	}{
+		{0, DEFAULT_EQUITIES_WORKERS},
+		{-1, DEFAULT_EQUITIES_WORKERS},
+		{3, 3},
+	} {
+		client := NewEquitiesClient(Config{Provider: MANUAL, EquitiesWorkers: test.workers}, nil, onQuote, nil)
+		if client.workerCount != test.want {
+			t.Errorf("EquitiesWorkers %d: workerCount = %d, want %d", test.workers, client.workerCount, test.want)
+		}
+	}
+	if DEFAULT_EQUITIES_WORKERS != 1 {
+		t.Fatalf("DEFAULT_EQUITIES_WORKERS = %d, want 1", DEFAULT_EQUITIES_WORKERS)
+	}
+}

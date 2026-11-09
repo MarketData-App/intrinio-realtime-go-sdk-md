@@ -417,6 +417,8 @@ Configuration is done through a configuration object (`intrinio.Config`) that is
 var config intrinio.Config = intrinio.Config{ApiKey: "YOUR-API-KEY", Provider: "DELAYED_SIP"}
 ```
 
+`EquitiesWorkers` sets the number of goroutines that read the equities queue. If it is zero or less, the client uses `DEFAULT_EQUITIES_WORKERS`, which is 1.
+
  Or, you can create `.json` config files, of the following form, and place them in your application root. An example of this is provided in the sample project.
 
 

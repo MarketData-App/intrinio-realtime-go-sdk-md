@@ -26,6 +26,7 @@ const (
 	HEARTBEAT_INTERVAL       int = 20
 	MAX_OPTIONS_QUEUE_DEPTH  int = 20000
 	MAX_EQUITIES_QUEUE_DEPTH int = 10000
+	DEFAULT_EQUITIES_WORKERS int = 1
 	defaultConnectTimeout        = 30 * time.Second
 	defaultReconnectDelay        = 10 * time.Second
 )
@@ -242,12 +243,9 @@ func NewEquitiesClient(
 	onTrade func(EquityTrade),
 	onQuote func(EquityQuote),
 	onCandle func(EquityCandle)) *Client {
-	client := newClient(c, 2, MAX_EQUITIES_QUEUE_DEPTH)
+	client := newClient(c, c.equitiesWorkerCount(), MAX_EQUITIES_QUEUE_DEPTH)
 	client.priorityQueue = newPriorityQueue(2, MAX_EQUITIES_QUEUE_DEPTH)
 	client.socketHeaders.Set("UseNewEquitiesFormat", "v2")
-	if onQuote != nil {
-		client.workerCount += 2
-	}
 	client.work = func(ctx context.Context) {
 		handleTrade, candleAggregator := equityTradeHandler(onTrade, onCandle)
 		if candleAggregator != nil {
