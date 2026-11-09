@@ -10,7 +10,6 @@ import (
 type CandleAggregator struct {
 	tradesByMinute map[string]map[float64][]EquityTrade // symbol -> minute -> trades
 	mu             sync.RWMutex
-	ticker         *time.Ticker
 	stopChan       chan bool
 	onCandle       func(EquityCandle)
 }
@@ -60,25 +59,24 @@ func (ca *CandleAggregator) tradeHandler(onTrade func(EquityTrade)) func(EquityT
 	}
 }
 
-// startTicker starts the ticker that processes candles every minute
+// startTicker processes candles every minute from the next minute boundary. It
+// waits in its own goroutine: the caller is a worker that must read frames now.
 func (ca *CandleAggregator) startTicker() {
-	// Calculate time until next minute boundary
-	now := time.Now()
-	nextMinute := now.Truncate(time.Minute).Add(time.Minute)
-	initialDelay := nextMinute.Sub(now)
-
-	// Wait for the next minute boundary, then start ticking every minute
-	time.Sleep(initialDelay)
-
-	ca.ticker = time.NewTicker(time.Minute)
-
 	go func() {
+		now := time.Now()
+		select {
+		case <-time.After(now.Truncate(time.Minute).Add(time.Minute).Sub(now)):
+		case <-ca.stopChan:
+			return
+		}
+
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
 		for {
 			select {
-			case <-ca.ticker.C:
+			case <-ticker.C:
 				ca.ProcessCandles()
 			case <-ca.stopChan:
-				ca.ticker.Stop()
 				return
 			}
 		}

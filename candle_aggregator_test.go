@@ -117,3 +117,17 @@ func TestTradeHandlerAcceptsNilOnTrade(t *testing.T) {
 		t.Fatalf("expected 1 trade in the aggregator, got %d", got)
 	}
 }
+
+// A worker calls AggregateCandle before it reads any frame, so the call must not
+// wait for the next minute boundary.
+func TestAggregateCandleDoesNotBlockTheCaller(t *testing.T) {
+	done := make(chan *CandleAggregator, 1)
+	go func() { done <- AggregateCandle(nil) }()
+
+	select {
+	case aggregator := <-done:
+		aggregator.Stop()
+	case <-time.After(time.Second):
+		t.Fatal("AggregateCandle blocked its caller")
+	}
+}
