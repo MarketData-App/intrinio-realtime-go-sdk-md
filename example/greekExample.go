@@ -175,7 +175,7 @@ func (g *GreekSampleApp) runGreekExample() error {
 		}
 	}()
 
-	g.equitiesClient = intrinio.NewEquitiesClient(equitiesConfig, g.OnEquitiesTrade, g.OnEquitiesQuote)
+	g.equitiesClient = intrinio.NewEquitiesClient(equitiesConfig, g.OnEquitiesTrade, g.OnEquitiesQuote, nil)
 	g.equitiesClient.Start()
 	g.equitiesClient.JoinMany(symbols)
 

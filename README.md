@@ -83,7 +83,7 @@ func handleOptionUA(ua intrinio.OptionUnusualActivity) {
 func main() {
 	var equitiesConfig intrinio.Config = intrinio.LoadConfig("equities-config.json")
 	var optionsConfig intrinio.Config = intrinio.LoadConfig("options-config.json")
-	var equitiesClient *intrinio.Client = intrinio.NewEquitiesClient(equitiesConfig, handleEquityTrade, handleEquityQuote)
+	var equitiesClient *intrinio.Client = intrinio.NewEquitiesClient(equitiesConfig, handleEquityTrade, handleEquityQuote, nil)
 	var optionsClient *intrinio.Client = intrinio.NewOptionsClient(optionsConfig, handleOptionTrade, nil, handleOptionRefresh, nil)
 	close := make(chan os.Signal, 1)
 	signal.Notify(close, syscall.SIGINT, syscall.SIGTERM)
@@ -384,10 +384,11 @@ If you wish to perform a shutdown of the application, please call the client's `
 
 ### Methods
 
-`var client Client = NewEquitiesClient(config, onTrade, onQuote)` - Creates an Intrinio Real-Time client for use with a real-time equity feed (DELAYED_SIP, NASDAQ_BASIC, IEX, CBOE_ONE).
+`var client Client = NewEquitiesClient(config, onTrade, onQuote, onCandle)` - Creates an Intrinio Real-Time client for use with a real-time equity feed (DELAYED_SIP, NASDAQ_BASIC, IEX, CBOE_ONE).
 * **Parameter** `config`: Required. The configuration object necessary to set up the client.
 * **Parameter** `onTrade`: Required. The callback accepting `intrinio.EquityTrade` updates.
 * **Parameter** `onQuote`: Optional. The callback accepting `intrinio.EquityQuote` updates. If `onQuote` is `nil`, you will not receive quote (ask, bid) updates from the server.
+* **Parameter** `onCandle`: Optional. The callback accepting `intrinio.EquityCandle` updates. The client builds one-minute candles from the trades that it receives. Each worker has its own aggregator, so a symbol can have more than one candle for a minute.
 
 `var client Client = NewOptionsClient(config, onTrade, onQuote, onRefresh, onUnusualActivity)` - Creates an Intrinio Real-Time client for use with a real-time option feed (OPRA).
 * **Parameter** `config`: Required. The configuration object necessary to set up the client.

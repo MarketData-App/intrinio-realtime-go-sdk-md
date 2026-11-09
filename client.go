@@ -240,7 +240,8 @@ func NewOptionsClient(
 func NewEquitiesClient(
 	c Config,
 	onTrade func(EquityTrade),
-	onQuote func(EquityQuote)) *Client {
+	onQuote func(EquityQuote),
+	onCandle func(EquityCandle)) *Client {
 	client := newClient(c, 2, MAX_EQUITIES_QUEUE_DEPTH)
 	client.priorityQueue = newPriorityQueue(2, MAX_EQUITIES_QUEUE_DEPTH)
 	client.socketHeaders.Set("UseNewEquitiesFormat", "v2")
@@ -248,10 +249,14 @@ func NewEquitiesClient(
 		client.workerCount += 2
 	}
 	client.work = func(ctx context.Context) {
+		candleAggregator := AggregateCandle(onCandle)
+		defer candleAggregator.Stop()
+		handleTrade := candleAggregator.tradeHandler(onTrade)
+
 		for ctx.Err() == nil {
 			didWork := workOnEquities(
 				client.priorityQueue,
-				onTrade,
+				handleTrade,
 				onQuote)
 
 			select {
@@ -262,7 +267,7 @@ func NewEquitiesClient(
 				err := queueEquityMessages(data, client.priorityQueue, func() bool {
 					return workOnEquities(
 						client.priorityQueue,
-						onTrade,
+						handleTrade,
 						onQuote)
 				})
 				if err != nil {
@@ -273,7 +278,7 @@ func NewEquitiesClient(
 
 			if workOnEquities(
 				client.priorityQueue,
-				onTrade,
+				handleTrade,
 				onQuote) {
 				didWork = true
 			}

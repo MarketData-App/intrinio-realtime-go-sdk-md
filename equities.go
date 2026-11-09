@@ -177,3 +177,13 @@ func composeEquityLeaveMsg(symbol string) []byte {
 	log.Printf("Equity Client - Composed leave msg for channel %s\n", symbol)
 	return message
 }
+
+type EquityCandle struct {
+	Symbol    string
+	Open      float64
+	High      float64
+	Low       float64
+	Close     float64
+	Volume    uint32
+	Timestamp float64
+}
