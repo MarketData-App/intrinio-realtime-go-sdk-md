@@ -252,37 +252,26 @@ func NewEquitiesClient(
 			defer candleAggregator.Stop()
 		}
 
-		for ctx.Err() == nil {
-			didWork := workOnEquities(
-				client.priorityQueue,
-				handleTrade,
-				onQuote)
+		processNext := func() bool {
+			return workOnEquities(client.priorityQueue, handleTrade, onQuote)
+		}
+		for {
+			// Empty the message queue before the next frame is read. A backlog then
+			// waits in readChannel as whole frames, and the quote queue never
+			// holds more than one frame per worker, so it does not drop quotes.
+			for processNext() {
+				if ctx.Err() != nil {
+					return
+				}
+			}
 
 			select {
 			case <-ctx.Done():
 				return
 			case data := <-client.readChannel:
-				didWork = true
-				err := queueEquityMessages(data, client.priorityQueue, func() bool {
-					return workOnEquities(
-						client.priorityQueue,
-						handleTrade,
-						onQuote)
-				})
-				if err != nil {
+				if err := queueEquityMessages(data, client.priorityQueue, processNext); err != nil {
 					log.Printf("Equity Client - Invalid data message: %v", err)
 				}
-			default:
-			}
-
-			if workOnEquities(
-				client.priorityQueue,
-				handleTrade,
-				onQuote) {
-				didWork = true
-			}
-			if !didWork && !waitFor(ctx, 10*time.Millisecond) {
-				return
 			}
 		}
 	}

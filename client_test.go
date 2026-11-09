@@ -2,8 +2,10 @@ package intrinio
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -1177,5 +1179,54 @@ func TestEquitiesClientWorkerCountComesFromConfig(t *testing.T) {
 	}
 	if DEFAULT_EQUITIES_WORKERS != 1 {
 		t.Fatalf("DEFAULT_EQUITIES_WORKERS = %d, want 1", DEFAULT_EQUITIES_WORKERS)
+	}
+}
+
+func equityQuoteFrame(t *testing.T, count int) []byte {
+	t.Helper()
+	if count < 1 || count > 255 {
+		t.Fatalf("a frame holds 1 to 255 messages, got %d", count)
+	}
+	frame := []byte{byte(count)}
+	for i := 0; i < count; i++ {
+		message := []byte{byte(ASK), 0, 3, 'S', 'P', 'Y', 0, 'A', 0}
+		message = binary.LittleEndian.AppendUint32(message, math.Float32bits(500))
+		message = binary.LittleEndian.AppendUint32(message, 100)
+		message = binary.LittleEndian.AppendUint64(message, uint64(time.Now().UnixNano()))
+		message = append(message, 0) // no conditions
+		message[1] = byte(len(message))
+		frame = append(frame, message...)
+	}
+	return frame
+}
+
+// A backlog of frames, as after a feed lag, must reach onQuote without drops:
+// the worker must empty the message queue before it reads the next frame.
+func TestEquitiesWorkerDoesNotDropQuotesFromABacklog(t *testing.T) {
+	const frames = 200
+	const perFrame = 255 // 51,000 quotes, five times the quote queue depth
+	var received atomic.Int64
+	client := NewEquitiesClient(Config{Provider: MANUAL}, nil, func(EquityQuote) { received.Add(1) }, nil)
+	for i := 0; i < frames; i++ {
+		client.readChannel <- equityQuoteFrame(t, perFrame)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		client.work(ctx)
+		close(done)
+	}()
+	waitForCondition(t, 10*time.Second, func() bool {
+		return len(client.readChannel) == 0 && client.priorityQueue.depth() == 0
+	}, "the worker to empty the backlog")
+	cancel()
+	<-done
+
+	if dropped := client.priorityQueue.dropCount(); dropped != 0 {
+		t.Fatalf("the quote queue dropped %d quotes", dropped)
+	}
+	if got := received.Load(); got != frames*perFrame {
+		t.Fatalf("onQuote received %d quotes, want %d", got, frames*perFrame)
 	}
 }
