@@ -89,3 +89,31 @@ func TestProcessCandlesEmitsCandleForCompletedMinute(t *testing.T) {
 		t.Fatalf("unexpected candle: %+v", c)
 	}
 }
+
+// The worker uses tradeHandler as its trade callback: a trade must reach the
+// aggregator and the caller's callback.
+func TestTradeHandlerAddsTheTradeAndCallsOnTrade(t *testing.T) {
+	ca := newTestAggregator()
+	var received []EquityTrade
+	handle := ca.tradeHandler(func(trade EquityTrade) { received = append(received, trade) })
+
+	handle(EquityTrade{Symbol: "SPY", Price: 100, Size: 1, Timestamp: float64(time.Now().Unix())})
+
+	if len(received) != 1 || received[0].Symbol != "SPY" {
+		t.Fatalf("onTrade received %+v", received)
+	}
+	if got := ca.GetStats()["total"]; got != 1 {
+		t.Fatalf("expected 1 trade in the aggregator, got %d", got)
+	}
+}
+
+// A nil onTrade must not stop a trade from reaching the aggregator.
+func TestTradeHandlerAcceptsNilOnTrade(t *testing.T) {
+	ca := newTestAggregator()
+
+	ca.tradeHandler(nil)(EquityTrade{Symbol: "SPY", Price: 100, Size: 1, Timestamp: float64(time.Now().Unix())})
+
+	if got := ca.GetStats()["total"]; got != 1 {
+		t.Fatalf("expected 1 trade in the aggregator, got %d", got)
+	}
+}
