@@ -1,7 +1,6 @@
 package intrinio
 
 import (
-	"log"
 	"math"
 	"sync"
 	"time"
@@ -102,9 +101,6 @@ func (ca *CandleAggregator) ProcessCandles() {
 		if trades, exists := minuteTrades[completedMinute]; exists && len(trades) > 0 {
 			// Generate candle for this symbol and minute
 			candle := ca.buildCandle(symbol, trades, completedMinute)
-
-			log.Printf("DEBUG: Generated candle for %s at minute %.2f: O:%.2f H:%.2f L:%.2f C:%.2f V:%d",
-				symbol, completedMinute, candle.Open, candle.High, candle.Low, candle.Close, candle.Volume)
 
 			// Send the candle
 			if ca.onCandle != nil {
