@@ -97,8 +97,6 @@ func (ca *CandleAggregator) ProcessCandles() {
 	currentTime := float64(time.Now().Unix())
 	currentMinute := math.Floor(currentTime/60) * 60
 
-	log.Printf("DEBUG: Processing candles at time %.2f, current minute: %.2f", currentTime, currentMinute)
-
 	// Process each symbol
 	for symbol, minuteTrades := range ca.tradesByMinute {
 		// Find the minute that just completed (previous minute)
