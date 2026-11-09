@@ -48,9 +48,6 @@ func (ca *CandleAggregator) AddTrade(trade EquityTrade) {
 		ca.tradesByMinute[trade.Symbol][minuteTimestamp],
 		trade,
 	)
-
-	log.Printf("DEBUG: Added trade for %s at minute %.2f, total trades in minute: %d",
-		trade.Symbol, minuteTimestamp, len(ca.tradesByMinute[trade.Symbol][minuteTimestamp]))
 }
 
 // tradeHandler returns a trade callback that adds each trade to the aggregator
