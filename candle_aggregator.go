@@ -93,22 +93,27 @@ func (ca *CandleAggregator) ProcessCandles() {
 	currentTime := float64(time.Now().Unix())
 	currentMinute := math.Floor(currentTime/60) * 60
 
-	// Process each symbol
+	// Process and evict every completed minute — any bucket strictly older than
+	// the in-progress minute — not just currentMinute-60. Delayed feeds
+	// (e.g. DELAYED_SIP, ~15-min delay) file trades into buckets far in the past;
+	// evicting only currentMinute-60 leaks the entire trade stream (issue #127).
 	for symbol, minuteTrades := range ca.tradesByMinute {
-		// Find the minute that just completed (previous minute)
-		completedMinute := currentMinute - 60
-
-		if trades, exists := minuteTrades[completedMinute]; exists && len(trades) > 0 {
-			// Generate candle for this symbol and minute
-			candle := ca.buildCandle(symbol, trades, completedMinute)
-
-			// Send the candle
-			if ca.onCandle != nil {
-				ca.onCandle(candle)
+		for minute, trades := range minuteTrades {
+			if minute >= currentMinute {
+				continue // still in progress; leave it for a later tick
 			}
-
-			// Remove the processed trades
-			delete(minuteTrades, completedMinute)
+			if len(trades) > 0 {
+				candle := ca.buildCandle(symbol, trades, minute)
+				if ca.onCandle != nil {
+					ca.onCandle(candle)
+				}
+			}
+			delete(minuteTrades, minute)
+		}
+		// Drop the symbol entry once it has no pending minutes so the outer map
+		// doesn't retain stale symbols indefinitely.
+		if len(minuteTrades) == 0 {
+			delete(ca.tradesByMinute, symbol)
 		}
 	}
 }
