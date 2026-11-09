@@ -59,6 +59,16 @@ func (ca *CandleAggregator) tradeHandler(onTrade func(EquityTrade)) func(EquityT
 	}
 }
 
+// equityTradeHandler returns the trade callback of a worker. Without onCandle it
+// returns onTrade and no aggregator, so no trade is stored and no ticker runs.
+func equityTradeHandler(onTrade func(EquityTrade), onCandle func(EquityCandle)) (func(EquityTrade), *CandleAggregator) {
+	if onCandle == nil {
+		return onTrade, nil
+	}
+	aggregator := AggregateCandle(onCandle)
+	return aggregator.tradeHandler(onTrade), aggregator
+}
+
 // startTicker processes candles every minute from the next minute boundary. It
 // waits in its own goroutine: the caller is a worker that must read frames now.
 func (ca *CandleAggregator) startTicker() {

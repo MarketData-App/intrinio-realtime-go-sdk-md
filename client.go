@@ -249,9 +249,10 @@ func NewEquitiesClient(
 		client.workerCount += 2
 	}
 	client.work = func(ctx context.Context) {
-		candleAggregator := AggregateCandle(onCandle)
-		defer candleAggregator.Stop()
-		handleTrade := candleAggregator.tradeHandler(onTrade)
+		handleTrade, candleAggregator := equityTradeHandler(onTrade, onCandle)
+		if candleAggregator != nil {
+			defer candleAggregator.Stop()
+		}
 
 		for ctx.Err() == nil {
 			didWork := workOnEquities(

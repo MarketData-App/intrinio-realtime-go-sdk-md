@@ -131,3 +131,40 @@ func TestAggregateCandleDoesNotBlockTheCaller(t *testing.T) {
 		t.Fatal("AggregateCandle blocked its caller")
 	}
 }
+
+// Without onCandle a worker must not store trades or start a ticker.
+func TestEquityTradeHandlerWithoutOnCandleHasNoAggregator(t *testing.T) {
+	var received []EquityTrade
+	handle, aggregator := equityTradeHandler(func(trade EquityTrade) { received = append(received, trade) }, nil)
+	if aggregator != nil {
+		t.Fatal("expected no aggregator without onCandle")
+	}
+
+	handle(EquityTrade{Symbol: "SPY", Price: 100, Size: 1, Timestamp: float64(time.Now().Unix())})
+
+	if len(received) != 1 || received[0].Symbol != "SPY" {
+		t.Fatalf("onTrade received %+v", received)
+	}
+	if handle, aggregator := equityTradeHandler(nil, nil); handle != nil || aggregator != nil {
+		t.Fatal("expected no trade callback and no aggregator without onTrade and onCandle")
+	}
+}
+
+// With onCandle a trade must reach the aggregator and onTrade.
+func TestEquityTradeHandlerWithOnCandleAddsTheTrade(t *testing.T) {
+	var received []EquityTrade
+	handle, aggregator := equityTradeHandler(func(trade EquityTrade) { received = append(received, trade) }, func(EquityCandle) {})
+	if aggregator == nil {
+		t.Fatal("expected an aggregator with onCandle")
+	}
+	defer aggregator.Stop()
+
+	handle(EquityTrade{Symbol: "SPY", Price: 100, Size: 1, Timestamp: float64(time.Now().Unix())})
+
+	if len(received) != 1 {
+		t.Fatalf("onTrade received %+v", received)
+	}
+	if got := aggregator.GetStats()["total"]; got != 1 {
+		t.Fatalf("expected 1 trade in the aggregator, got %d", got)
+	}
+}

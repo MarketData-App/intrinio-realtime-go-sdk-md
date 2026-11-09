@@ -388,7 +388,7 @@ If you wish to perform a shutdown of the application, please call the client's `
 * **Parameter** `config`: Required. The configuration object necessary to set up the client.
 * **Parameter** `onTrade`: Required. The callback accepting `intrinio.EquityTrade` updates.
 * **Parameter** `onQuote`: Optional. The callback accepting `intrinio.EquityQuote` updates. If `onQuote` is `nil`, you will not receive quote (ask, bid) updates from the server.
-* **Parameter** `onCandle`: Optional. The callback accepting `intrinio.EquityCandle` updates. The client builds one-minute candles from the trades that it receives. Each worker has its own aggregator, so a symbol can have more than one candle for a minute.
+* **Parameter** `onCandle`: Optional. The callback accepting `intrinio.EquityCandle` updates. The client builds one-minute candles from the trades that it receives. Each worker has its own aggregator, so a symbol can have more than one candle for a minute. If `onCandle` is nil, the client does not store trades for candles and starts no candle ticker.
 
 `var client Client = NewOptionsClient(config, onTrade, onQuote, onRefresh, onUnusualActivity)` - Creates an Intrinio Real-Time client for use with a real-time option feed (OPRA).
 * **Parameter** `config`: Required. The configuration object necessary to set up the client.
