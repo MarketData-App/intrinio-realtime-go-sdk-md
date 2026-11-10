@@ -409,6 +409,12 @@ If you wish to perform a shutdown of the application, please call the client's `
 `client.LeaveMany(symbols []string)` - Leaves the channels identified by the given symbol slice
 `client.LeaveLobby()` - Leaves the lobby channel.
 
+`client.Stats()` - Returns a `ClientStats` value with the message-path counters of the client. You can call it from any goroutine, before `Start` and after `Stop`.
+* `DataMessages`, `BytesReceived`: the binary frames read from the WebSocket and the sum of their payload bytes.
+* `ReadQueueDepth`, `ReadQueueCapacity`, `ReadQueueDrops`: the frames that wait in the read channel, the size of the channel, and the frames dropped because the channel was full.
+* `PriorityQueueDepth`, `PriorityQueueDrops`: the messages that wait in the priority queue, and the messages that a full lower-priority queue dropped.
+* The four counters only increase. `Stop` and `Start` do not reset them. The depths are values at the time of the call.
+
 ## Configuration
 
 Configuration is done through a configuration object (`intrinio.Config`) that is passed to the `intrinio.New[Equities/Options]Client` routine. You may create a configuration directly, in code, like so:
