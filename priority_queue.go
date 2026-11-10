@@ -10,6 +10,8 @@ import (
 // reached it; lower-priority queues discard their oldest message when full.
 type priorityQueue struct {
 	queues []prioritizedMessageQueue
+	// droppedTotal counts the drops of all queues. reset does not clear it.
+	droppedTotal atomic.Uint64
 }
 
 type prioritizedMessageQueue struct {
@@ -56,6 +58,7 @@ func (queue *priorityQueue) enqueue(priority int, message []byte) bool {
 		select {
 		case <-priorityQueue.messages:
 			priorityQueue.dropped.Add(1)
+			queue.droppedTotal.Add(1)
 		default:
 			// Another worker made room between the send and receive attempts.
 			runtime.Gosched()
@@ -88,6 +91,11 @@ func (queue *priorityQueue) dropCount() uint64 {
 		count += queue.queues[i].dropped.Load()
 	}
 	return count
+}
+
+// totalDropCount returns the drops since the queue was made, across resets.
+func (queue *priorityQueue) totalDropCount() uint64 {
+	return queue.droppedTotal.Load()
 }
 
 func (queue *priorityQueue) reset() {

@@ -146,6 +146,7 @@ type Client struct {
 	reconnectDelay  time.Duration
 	backoffs        []time.Duration
 	heartbeat       time.Duration
+	counters        clientCounters
 }
 
 func newClient(c Config, workerCount, readQueueDepth int) *Client {
@@ -689,6 +690,8 @@ func (client *Client) read(run *clientRun) {
 		switch msgType {
 		case websocket.BinaryMessage:
 			client.dataMsgCount.Add(1)
+			client.counters.dataMessages.Add(1)
+			client.counters.bytesReceived.Add(uint64(len(data)))
 			select {
 			case client.readChannel <- data:
 				if queueFull && len(client.readChannel) < highWatermark {
@@ -696,6 +699,7 @@ func (client *Client) read(run *clientRun) {
 					log.Println("Client - read channel draining")
 				}
 			default:
+				client.counters.readQueueDrops.Add(1)
 				if !queueFull {
 					log.Println("Client - read channel full")
 					queueFull = true
